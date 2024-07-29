@@ -6,4 +6,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Stripe.net" Version="45.5.0" />
+  </ItemGroup>
+
 </Project>
