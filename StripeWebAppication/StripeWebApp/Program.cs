@@ -1,11 +1,17 @@
+using Microsoft.EntityFrameworkCore;
 using Stripe;
+using StripeWebApp.Data;
 
 var builder = WebApplication.CreateBuilder(args);
+
+//Add services to the Dbcontext
+builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnectionString")));
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 
 var app = builder.Build();
+
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
@@ -24,6 +30,6 @@ app.UseAuthorization();
 
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}");
+    pattern: "{controller=Payment}/{action=Index}/{id?}");
 
 app.Run();
