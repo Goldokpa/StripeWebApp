@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
@@ -11,11 +12,13 @@ namespace TaskManagementFrontend.Controllers
     {
         private readonly IHttpClientFactory _clientFactory;
         private readonly IConfiguration _configuration;
+        private readonly ILogger<TasksController> _logger;
 
-        public TasksController(IHttpClientFactory clientFactory, IConfiguration configuration)
+        public TasksController(IHttpClientFactory clientFactory, IConfiguration configuration, ILogger<TasksController> logger)
         {
             _clientFactory = clientFactory;
             _configuration = configuration;
+            _logger = logger;
         }
 
         // List all tasks
@@ -32,6 +35,7 @@ namespace TaskManagementFrontend.Controllers
                 return View(tasks);
             }
 
+            _logger.LogError($"Failed to retrieve tasks. Status Code: {response.StatusCode}");
             return View(new List<TaskItem>());
         }
 
@@ -49,6 +53,7 @@ namespace TaskManagementFrontend.Controllers
                 return View(task);
             }
 
+            _logger.LogError($"Failed to retrieve task with ID {id}. Status Code: {response.StatusCode}");
             return NotFound();
         }
 
@@ -69,12 +74,22 @@ namespace TaskManagementFrontend.Controllers
                 var apiBaseUrl = _configuration["ApiBaseUrl"];
                 var jsonTask = JsonSerializer.Serialize(task);
                 var content = new StringContent(jsonTask, Encoding.UTF8, "application/json");
+
+                _logger.LogInformation("Sending POST request to create a new task.");
+                _logger.LogInformation($"Task Data: {jsonTask}");
+
                 var response = await client.PostAsync($"{apiBaseUrl}/api/tasks", content);
+
+                _logger.LogInformation($"Response Status: {response.StatusCode}");
 
                 if (response.IsSuccessStatusCode)
                 {
                     return RedirectToAction(nameof(Index));
                 }
+
+                var responseBody = await response.Content.ReadAsStringAsync();
+                _logger.LogError($"Error while creating task: {responseBody}");
+                ModelState.AddModelError(string.Empty, $"Error: {responseBody}");
             }
 
             return View(task);
@@ -94,6 +109,7 @@ namespace TaskManagementFrontend.Controllers
                 return View(task);
             }
 
+            _logger.LogError($"Failed to retrieve task for editing with ID {id}. Status Code: {response.StatusCode}");
             return NotFound();
         }
 
@@ -104,6 +120,7 @@ namespace TaskManagementFrontend.Controllers
         {
             if (id != task.Id)
             {
+                _logger.LogError($"Task ID mismatch. Provided ID: {id}, Task ID: {task.Id}");
                 return BadRequest();
             }
 
@@ -113,12 +130,22 @@ namespace TaskManagementFrontend.Controllers
                 var apiBaseUrl = _configuration["ApiBaseUrl"];
                 var jsonTask = JsonSerializer.Serialize(task);
                 var content = new StringContent(jsonTask, Encoding.UTF8, "application/json");
+
+                _logger.LogInformation($"Sending PUT request to update task with ID {id}.");
+                _logger.LogInformation($"Task Data: {jsonTask}");
+
                 var response = await client.PutAsync($"{apiBaseUrl}/api/tasks/{id}", content);
+
+                _logger.LogInformation($"Response Status: {response.StatusCode}");
 
                 if (response.IsSuccessStatusCode)
                 {
                     return RedirectToAction(nameof(Index));
                 }
+
+                var responseBody = await response.Content.ReadAsStringAsync();
+                _logger.LogError($"Error while updating task: {responseBody}");
+                ModelState.AddModelError(string.Empty, $"Error: {responseBody}");
             }
 
             return View(task);
@@ -138,6 +165,7 @@ namespace TaskManagementFrontend.Controllers
                 return View(task);
             }
 
+            _logger.LogError($"Failed to retrieve task for deletion with ID {id}. Status Code: {response.StatusCode}");
             return NotFound();
         }
 
@@ -150,11 +178,15 @@ namespace TaskManagementFrontend.Controllers
             var apiBaseUrl = _configuration["ApiBaseUrl"];
             var response = await client.DeleteAsync($"{apiBaseUrl}/api/tasks/{id}");
 
+            _logger.LogInformation($"Attempting to delete task with ID {id}. Response Status: {response.StatusCode}");
+
             if (response.IsSuccessStatusCode)
             {
                 return RedirectToAction(nameof(Index));
             }
 
+            var responseBody = await response.Content.ReadAsStringAsync();
+            _logger.LogError($"Error while deleting task: {responseBody}");
             return Problem("There was an error deleting the task.");
         }
     }
